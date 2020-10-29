@@ -16,7 +16,7 @@
 #endif
 
 #ifndef VERBOSE
-#define VERBOSE 0
+#define VERBOSE 1
 #endif
 
 enum JavelinError javelinWriteCharArray( struct JavelinMessageBlock* block, const char* buffer, const size_t length )
@@ -263,6 +263,7 @@ enum JavelinError javelinCreate( struct JavelinState* state, const char* address
 	struct addrinfo* addr;
 	for ( addr = addrResults; addr != NULL; addr = addr->ai_next ) {
 		state->socket = socket( addr->ai_family, addr->ai_socktype, addr->ai_protocol );
+		assert( state->socket >= -1 );
 		if ( state->socket == -1 ) {
 			continue;
 		}
@@ -339,6 +340,15 @@ static void writePacketHeader( struct JavelinState* state, enum JavelinPacketTyp
 
 static void sendPacket( struct JavelinState* state, struct sockaddr_storage* address )
 {
+	printf( "net: sendto: socket %i, buffer %zu, bufferSize %zu, address size: %zu\n", state->socket, state->outgoingPacketBuffer, state->outgoingPacketSize, sizeof(struct sockaddr_storage) );
+	if ( address->ss_family == AF_INET ) {
+		struct sockaddr_in* addr = (struct sockaddr_in*)address;
+		printf( "net: sendto: address is v4: port %i\n", ntohs( addr->sin_port ) );
+	}
+	else {
+		struct sockaddr_in6* addr = (struct sockaddr_in6*)address;
+		printf( "net: sendto: address is v6: port %i\n", ntohs( addr->sin6_port ) );
+	}
 	int result = sendto( state->socket, state->outgoingPacketBuffer, state->outgoingPacketSize, 0, (struct sockaddr*)address, sizeof(struct sockaddr_storage) );
 	if ( result < 0 ) {
 		printf( "net: sendto error: %i\n", errno );
@@ -351,9 +361,6 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 		return JAVELIN_ERROR_INVALID_ADDRESS;
 	}
 
-	if ( state->connectionCount == state->connectionLimit ) {
-		return JAVELIN_ERROR_CONNECTION_LIMIT;
-	}
 	struct JavelinConnection* connection = NULL;
 	for ( size_t i = 0; i < state->connectionLimit; i++ ) {
 		if ( state->connectionSlots[i].isActive ) {
@@ -405,6 +412,7 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 
 void javelinDisconnect( struct JavelinState* state )
 {
+	// TODO: Consider whether we need to use this on the server side to disconnect all clients
 	struct JavelinConnection* connection = NULL;
 	for ( size_t i = 0; i < state->connectionLimit; i++ ) {
 		if ( !state->connectionSlots[i].isActive ) {
@@ -567,7 +575,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		}
 
 		struct sockaddr_storage fromAddress;
-		int fromLength;
+		int fromLength = sizeof(fromAddress);
 		javelin_u8 packetBuffer[JAVELIN_MAX_PACKET_SIZE];
 		int receivedLength = recvfrom( state->socket, packetBuffer, JAVELIN_MAX_PACKET_SIZE, 0, (struct sockaddr*)&fromAddress, (socklen_t*)&fromLength );
 		if ( receivedLength <= 0 ) {
@@ -581,7 +589,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		char portstr[16];
 		int gniresult = getnameinfo( (struct sockaddr*)&fromAddress, sizeof(struct sockaddr_storage), addrstr, sizeof(addrstr), portstr, sizeof(portstr), NI_NUMERICHOST|NI_NUMERICSERV );
 		if ( gniresult == 0 ) {
-			//printf( "net: packet from %s:%s\n", addrstr, portstr );
+			printf( "net: packet from %s:%s\n", addrstr, portstr );
 		}
 
 		size_t readOffset = 0;

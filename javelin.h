@@ -113,7 +113,6 @@ struct JavelinPendingConnection {
 
 struct JavelinState {
 	struct JavelinConnection* connectionSlots;
-	javelin_u32 connectionCount;
 	javelin_u32 connectionLimit;
 	struct JavelinPendingConnection pendingConnectionSlots[JAVELIN_MAX_PENDING_CONNECTIONS];
 	javelin_u32 pendingConnectionCount;

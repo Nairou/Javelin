@@ -1,4 +1,5 @@
 #include "javelin.h"
+#include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -17,6 +18,7 @@ int main()
 		printf( "Error connecting to server\n" );
 		return 1;
 	}
+	assert( netState.connectionSlots[0].isActive == true );
 #endif
 
 #ifdef SERVER
@@ -74,7 +76,7 @@ int main()
 			printf( "\033[%iC%i\033[%iD", position[i], i, position[i] );
 		}
 		printf( "\n" );
-		//usleep( 50000 );
+		usleep( 50000 );
 	}
 }
 
