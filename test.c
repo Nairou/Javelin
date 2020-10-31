@@ -67,7 +67,7 @@ int main()
 					struct JavelinMessageBlock block = {0};
 					javelinWriteU16( &block, s );
 					javelinWriteU32( &block, position[s] );
-					javelinQueueMessage( &netState, &block, slot );
+					javelinQueueMessage( &netState.connectionSlots[slot], &block );
 				}
 			}
 		}

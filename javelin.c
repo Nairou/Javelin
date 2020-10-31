@@ -16,7 +16,7 @@
 #endif
 
 #ifndef VERBOSE
-#define VERBOSE 1
+#define VERBOSE 0
 #endif
 
 enum JavelinError javelinWriteCharArray( struct JavelinMessageBlock* block, const char* buffer, const size_t length )
@@ -263,7 +263,6 @@ enum JavelinError javelinCreate( struct JavelinState* state, const char* address
 	struct addrinfo* addr;
 	for ( addr = addrResults; addr != NULL; addr = addr->ai_next ) {
 		state->socket = socket( addr->ai_family, addr->ai_socktype, addr->ai_protocol );
-		assert( state->socket >= -1 );
 		if ( state->socket == -1 ) {
 			continue;
 		}
@@ -340,18 +339,10 @@ static void writePacketHeader( struct JavelinState* state, enum JavelinPacketTyp
 
 static void sendPacket( struct JavelinState* state, struct sockaddr_storage* address )
 {
-	printf( "net: sendto: socket %i, buffer %zu, bufferSize %zu, address size: %zu\n", state->socket, state->outgoingPacketBuffer, state->outgoingPacketSize, sizeof(struct sockaddr_storage) );
-	if ( address->ss_family == AF_INET ) {
-		struct sockaddr_in* addr = (struct sockaddr_in*)address;
-		printf( "net: sendto: address is v4: port %i\n", ntohs( addr->sin_port ) );
-	}
-	else {
-		struct sockaddr_in6* addr = (struct sockaddr_in6*)address;
-		printf( "net: sendto: address is v6: port %i\n", ntohs( addr->sin6_port ) );
-	}
 	int result = sendto( state->socket, state->outgoingPacketBuffer, state->outgoingPacketSize, 0, (struct sockaddr*)address, sizeof(struct sockaddr_storage) );
 	if ( result < 0 ) {
-		printf( "net: sendto error: %i\n", errno );
+		// TODO: Do we care about this error? Count errors towards a forced disconnect?
+		if ( VERBOSE ) printf( "net: sendto error: %i\n", errno );
 	}
 }
 
@@ -396,7 +387,7 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 
 	struct timespec ts;
 	timespec_get( &ts, TIME_UTC );
-	javelin_u32 currentTimeMs = (javelin_u32)((javelin_u64)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
+	javelin_u64 currentTimeMs = ((javelin_u64)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
 
 	connection->isActive = true;
 	connection->connectionState = JAVELIN_CONNECTIONSTATE_CONNECTING;
@@ -463,7 +454,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 {
 	struct timespec ts;
 	timespec_get( &ts, TIME_UTC );
-	javelin_u32 currentTimeMs = (javelin_u32)((javelin_u64)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
+	javelin_u64 currentTimeMs = ((javelin_u64)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
 
 	// TODO: add unreliable message buffer
 	// TODO: add bandwidth tracking to adjust packet size or number sent
@@ -473,15 +464,19 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		if ( !connection->isActive ) {
 			continue;
 		}
+		if ( connection->outgoingLastIdSent == connection->outgoingLastIdAcknowledged ) {
+			continue;
+		}
 		bool messagesToSend = false;
 		writePacketHeader( state, JAVELIN_PACKET_DATA, connection->incomingLastIdProcessed );
 		size_t messageIndex = (connection->outgoingLastIdAcknowledged + 1) % JAVELIN_MAX_MESSAGES;
-		while ( connection->outgoingMessageBuffer[messageIndex].messageId != connection->outgoingLastIdSent ) {
+		size_t lastIndex = (connection->outgoingLastIdSent + 1) % JAVELIN_MAX_MESSAGES;
+		while ( messageIndex != lastIndex ) {
 			struct JavelinMessageBlock* block = &connection->outgoingMessageBuffer[messageIndex];
 			if ( state->outgoingPacketSize + sizeof(javelin_u16) + sizeof(javelin_u16) + block->size > JAVELIN_MAX_MESSAGE_SIZE ) {
 				break;
 			}
-			if ( block->outgoingLastSendTime == -1 || (block->outgoingLastSendTime - currentTimeMs) > connection->retryTime ) {
+			if ( block->outgoingLastSendTime == 0 || (currentTimeMs - block->outgoingLastSendTime) > connection->retryTime ) {
 				if ( VERBOSE ) printf( "queuing message to send: id = %i, size = %zu\n", block->messageId, block->size );
 				// message header
 				writeBufferU16( state->outgoingPacketBuffer, &state->outgoingPacketSize, block->messageId );
@@ -553,7 +548,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 			return true;
 		}
 		else if ( currentTimeMs - connection->lastSendTime >= connection->retryTime && connection->connectionState == JAVELIN_CONNECTIONSTATE_CONNECTED ) {
-			if ( VERBOSE ) printf( "net: Send packet: JAVELIN_PACKET_PING\n" );
+			if ( VERBOSE ) printf( "net: Send packet: JAVELIN_PACKET_PING (%i)\n", connection->incomingLastIdProcessed );
 			writePacketHeader( state, JAVELIN_PACKET_PING, connection->incomingLastIdProcessed );
 			sendPacket( state, &connection->address );
 			connection->lastSendTime = currentTimeMs;
@@ -580,16 +575,10 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		int receivedLength = recvfrom( state->socket, packetBuffer, JAVELIN_MAX_PACKET_SIZE, 0, (struct sockaddr*)&fromAddress, (socklen_t*)&fromLength );
 		if ( receivedLength <= 0 ) {
 			if ( receivedLength == -1 && errno != EAGAIN && errno != EWOULDBLOCK ) {
-				printf( "net: recvfrom error: %i\n", errno );
+				// TODO: Do we care about this error? Count errors towards a forced disconnect?
+				if ( VERBOSE ) printf( "net: recvfrom error: %i\n", errno );
 			}
 			return false;
-		}
-
-		char addrstr[1024];
-		char portstr[16];
-		int gniresult = getnameinfo( (struct sockaddr*)&fromAddress, sizeof(struct sockaddr_storage), addrstr, sizeof(addrstr), portstr, sizeof(portstr), NI_NUMERICHOST|NI_NUMERICSERV );
-		if ( gniresult == 0 ) {
-			printf( "net: packet from %s:%s\n", addrstr, portstr );
 		}
 
 		size_t readOffset = 0;
@@ -605,6 +594,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 			}
 			if ( isSameConnection( &fromAddress, &connection->address ) ) {
 				packetConnection = connection;
+				state->incomingLastPacketSlot = slot;
 				break;
 			}
 		}
@@ -650,7 +640,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 			else if ( packetHeader.type == JAVELIN_PACKET_CONNECT_CHALLENGE_RESPONSE && pendingConnection->connectionState == JAVELIN_CONNECTIONSTATE_CONNECTING && pendingConnection->challenge != 0 ) {
 				if ( VERBOSE ) printf( "net: Received JAVELIN_PACKET_CONNECT_CHALLENGE_RESPONSE\n" );
 				// TODO: test validity of challenge response
-				javelin_u32 availableSlot = -1;
+				javelin_s32 availableSlot = -1;
 				for ( size_t slot = 0; slot < state->connectionLimit; slot++ ) {
 					struct JavelinConnection* connection = &state->connectionSlots[slot];
 					if ( !connection->isActive ) {
@@ -687,6 +677,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		}
 
 		packetConnection->lastReceiveTime = currentTimeMs;
+		if ( VERBOSE ) printf( "net: Received packet has ackMessageId = %i\n", packetHeader.ackMessageId );
 		if ( idIsGreater( packetHeader.ackMessageId, packetConnection->outgoingLastIdAcknowledged ) ) {
 			packetConnection->outgoingLastIdAcknowledged = packetHeader.ackMessageId;
 			if ( VERBOSE ) printf( "net: acknowledged up to %u\n", packetConnection->outgoingLastIdAcknowledged );
@@ -720,12 +711,12 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		else if ( packetConnection->connectionState == JAVELIN_CONNECTIONSTATE_CONNECTED ) {
 			if ( packetHeader.type == JAVELIN_PACKET_DATA ) {
 				if ( VERBOSE ) printf( "net: Received JAVELIN_PACKET_DATA\n" );
-				while ( readOffset < receivedLength ) {
+				while ( readOffset < (size_t)receivedLength ) {
 					// message header
 					const javelin_u16 id = readBufferU16( packetBuffer, &readOffset );
 					const javelin_u32 size = readBufferU16( packetBuffer, &readOffset );
 					if ( VERBOSE ) printf( "received message: id = %i, size = %i\n", id, size );
-					if ( readOffset + size > receivedLength ) {
+					if ( readOffset + size > (size_t)receivedLength ) {
 						// If reported size is bad, ignore the rest of the packet
 						break;
 					}
@@ -766,13 +757,18 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 	return false;
 }
 
-enum JavelinError javelinQueueMessage( struct JavelinState* state, struct JavelinMessageBlock* block, const javelin_u32 slot )
+struct JavelinMessageBlock javelinCreateMessage( void )
+{
+	// .size field must be initialized to zero before writing to a message
+	return (struct JavelinMessageBlock) { 0 };
+}
+
+enum JavelinError javelinQueueMessage( struct JavelinConnection* connection, struct JavelinMessageBlock* block )
 {
 	if ( block->size == 0 || block->size > JAVELIN_MAX_MESSAGE_SIZE ) {
 		return JAVELIN_ERROR_INVALID_MESSAGE;
 	}
 
-	struct JavelinConnection* connection = &state->connectionSlots[slot];
 	if ( connection->outgoingLastIdSent - connection->outgoingLastIdAcknowledged >= JAVELIN_MAX_MESSAGES ) {
 		return JAVELIN_ERROR_MESSAGE_BUFFER_FULL;
 	}
@@ -782,7 +778,7 @@ enum JavelinError javelinQueueMessage( struct JavelinState* state, struct Javeli
 	memcpy( outgoingBlock->payload, block->payload, block->size );
 	outgoingBlock->size = block->size;
 	outgoingBlock->messageId = ++connection->outgoingLastIdSent & 0xffff;
-	outgoingBlock->outgoingLastSendTime = -1;
+	outgoingBlock->outgoingLastSendTime = 0;
 	if ( VERBOSE ) printf( "net: message queued as %i\n", outgoingBlock->messageId );
 	return JAVELIN_ERROR_OK;
 }

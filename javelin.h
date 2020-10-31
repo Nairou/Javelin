@@ -82,7 +82,7 @@ struct JavelinPacketHeader {
 
 struct JavelinMessageBlock {
 	javelin_u32 messageId;
-	javelin_u32 outgoingLastSendTime;
+	javelin_u64 outgoingLastSendTime;
 	size_t incomingReadOffset;
 	size_t size;
 	javelin_u8 payload[JAVELIN_MAX_MESSAGE_SIZE];
@@ -93,8 +93,8 @@ struct JavelinConnection {
 	struct sockaddr_storage address;
 	enum JavelinConnectionStateType connectionState;
 	javelin_u32 challenge;	// TODO: make this value meaningful beyond existing
-	javelin_u32 lastSendTime;
-	javelin_u32 lastReceiveTime;
+	javelin_u64 lastSendTime;
+	javelin_u64 lastReceiveTime;
 	javelin_u32 retryTime;
 	struct JavelinMessageBlock incomingMessageBuffer[JAVELIN_MAX_MESSAGES];
 	javelin_u16 incomingLastIdProcessed;
@@ -107,8 +107,8 @@ struct JavelinPendingConnection {
 	struct sockaddr_storage address;
 	enum JavelinConnectionStateType connectionState;
 	javelin_u32 challenge;	// TODO: make this value meaningful beyond existing
-	javelin_u32 lastSendTime;
-	javelin_u32 lastReceiveTime;
+	javelin_u64 lastSendTime;
+	javelin_u64 lastReceiveTime;
 };
 
 struct JavelinState {
@@ -130,7 +130,7 @@ enum JavelinEventType {
 };
 
 struct JavelinEvent {
-	const struct JavelinConnection* connection;
+	struct JavelinConnection* connection;
 	enum JavelinEventType type;
 	struct JavelinMessageBlock* message;
 };
@@ -140,7 +140,8 @@ void javelinDestroy( struct JavelinState* state );
 enum JavelinError javelinConnect( struct JavelinState* state, const char* address, const javelin_u16 port );
 void javelinDisconnect( struct JavelinState* state );
 bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent );
-enum JavelinError javelinQueueMessage( struct JavelinState* state, struct JavelinMessageBlock* block, const javelin_u32 slot );
+struct JavelinMessageBlock javelinCreateMessage( void );
+enum JavelinError javelinQueueMessage( struct JavelinConnection* connection, struct JavelinMessageBlock* block );
 
 enum JavelinError javelinWriteCharArray( struct JavelinMessageBlock* block, const char* values, const size_t length );
 enum JavelinError javelinWriteU8( struct JavelinMessageBlock* block, const javelin_u8 value );
