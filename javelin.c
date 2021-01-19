@@ -225,6 +225,14 @@ javelin_s64 javelinReadS64( struct JavelinMessageBlock* block )
 	}
 	return -(javelin_s64)(-value);
 }
+
+static javelin_u64 getCurrentTime( void )
+{
+	struct timespec ts;
+	timespec_get( &ts, TIME_UTC );
+	return ((javelin_u64)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
+}
+
 enum JavelinError javelinCreate( struct JavelinState* state, const char* address, const javelin_u16 port, const javelin_u32 maxConnections )
 {
 	static_assert( JAVELIN_MAX_PACKET_SIZE > sizeof(struct JavelinPacketHeader) + sizeof(javelin_u16) + sizeof(javelin_u16) + JAVELIN_MAX_MESSAGE_SIZE, "Max message size is too large to fit in a packet" );
@@ -385,9 +393,7 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 		memcpy( &connection->address, addr->ai_addr, sizeof(struct sockaddr_in6) );
 	}
 
-	struct timespec ts;
-	timespec_get( &ts, TIME_UTC );
-	javelin_u64 currentTimeMs = ((javelin_u64)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
+	javelin_u64 currentTimeMs = getCurrentTime();
 
 	connection->isActive = true;
 	connection->connectionState = JAVELIN_CONNECTIONSTATE_CONNECTING;
@@ -452,9 +458,7 @@ static bool idIsGreater( const javelin_u32 first, javelin_u32 second )
 
 bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 {
-	struct timespec ts;
-	timespec_get( &ts, TIME_UTC );
-	javelin_u64 currentTimeMs = ((javelin_u64)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
+	javelin_u64 currentTimeMs = getCurrentTime();
 
 	// TODO: add unreliable message buffer
 	// TODO: add bandwidth tracking to adjust packet size or number sent
@@ -473,11 +477,11 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		size_t lastIndex = (connection->outgoingLastIdSent + 1) % JAVELIN_MAX_MESSAGES;
 		while ( messageIndex != lastIndex ) {
 			struct JavelinMessageBlock* block = &connection->outgoingMessageBuffer[messageIndex];
-			if ( state->outgoingPacketSize + sizeof(javelin_u16) + sizeof(javelin_u16) + block->size > JAVELIN_MAX_MESSAGE_SIZE ) {
+			if ( state->outgoingPacketSize + sizeof(javelin_u16) + sizeof(javelin_u16) + block->size > JAVELIN_MAX_PACKET_SIZE ) {
 				break;
 			}
 			if ( block->outgoingLastSendTime == 0 || (currentTimeMs - block->outgoingLastSendTime) > connection->retryTime ) {
-				if ( VERBOSE ) printf( "queuing message to send: id = %i, size = %zu\n", block->messageId, block->size );
+				if ( VERBOSE ) printf( "net: queuing message to send: id = %i, size = %zu\n", block->messageId, block->size );
 				// message header
 				writeBufferU16( state->outgoingPacketBuffer, &state->outgoingPacketSize, block->messageId );
 				writeBufferU16( state->outgoingPacketBuffer, &state->outgoingPacketSize, block->size );
@@ -677,7 +681,6 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		}
 
 		packetConnection->lastReceiveTime = currentTimeMs;
-		if ( VERBOSE ) printf( "net: Received packet has ackMessageId = %i\n", packetHeader.ackMessageId );
 		if ( idIsGreater( packetHeader.ackMessageId, packetConnection->outgoingLastIdAcknowledged ) ) {
 			packetConnection->outgoingLastIdAcknowledged = packetHeader.ackMessageId;
 			if ( VERBOSE ) printf( "net: acknowledged up to %u\n", packetConnection->outgoingLastIdAcknowledged );
@@ -766,10 +769,12 @@ struct JavelinMessageBlock javelinCreateMessage( void )
 enum JavelinError javelinQueueMessage( struct JavelinConnection* connection, struct JavelinMessageBlock* block )
 {
 	if ( block->size == 0 || block->size > JAVELIN_MAX_MESSAGE_SIZE ) {
+		printf( "net: Unable to queue message: invalid\n" );
 		return JAVELIN_ERROR_INVALID_MESSAGE;
 	}
 
 	if ( connection->outgoingLastIdSent - connection->outgoingLastIdAcknowledged >= JAVELIN_MAX_MESSAGES ) {
+		printf( "net: Unable to queue message: buffer full\n" );
 		return JAVELIN_ERROR_MESSAGE_BUFFER_FULL;
 	}
 
