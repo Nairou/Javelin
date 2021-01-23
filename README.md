@@ -5,14 +5,14 @@ Javelin is a reliable message-based network library written in C. It is primaril
 
 Javelin is incomplete and has bugs. It's primary purpose is for use in my own multiplayer game projects, and will evolve as it gets more use.
 
-Existing features:
+**Existing features**
 
 * Client/server connection management
 * Message-based API (for sending large numbers of small messages, rather than whole packets)
 * Reliable message ordering (messages are guaranteed to arrive in the order you send them)
 * Cross platform
 
-TODO:
+**TODO**
 
 * Connection security
   * Randomized connection challenge/response
