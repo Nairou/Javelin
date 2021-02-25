@@ -366,12 +366,13 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 			continue;
 		}
 		connection = &state->connectionSlots[i];
+		memset( connection, 0, sizeof(struct JavelinConnection) );
+		connection->slot = i;
 		break;
 	}
 	if ( connection == NULL ) {
 		return JAVELIN_ERROR_CONNECTION_LIMIT;
 	}
-	memset( connection, 0, sizeof(struct JavelinConnection) );
 
 	char portString[10];
 	snprintf( portString, sizeof(portString), "%i", port );

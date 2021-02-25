@@ -90,6 +90,8 @@ struct JavelinMessageBlock {
 
 struct JavelinConnection {
 	bool isActive;
+	size_t slot;
+	size_t userValue;
 	struct sockaddr_storage address;
 	enum JavelinConnectionStateType connectionState;
 	javelin_u32 challenge;	// TODO: make this value meaningful beyond existing
