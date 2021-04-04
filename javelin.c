@@ -662,6 +662,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 				struct JavelinConnection* connection = &state->connectionSlots[availableSlot];
 				memset( connection, 0, sizeof(struct JavelinConnection) );
 				connection->isActive = true;
+				connection->slot = availableSlot;
 				connection->address = pendingConnection->address;
 				connection->connectionState = JAVELIN_CONNECTIONSTATE_CONNECTED;
 				connection->challenge = pendingConnection->challenge;
