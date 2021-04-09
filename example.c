@@ -3,12 +3,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+javelin_u32 randomNumber()
+{
+	javelin_u32 v1 = rand();
+	javelin_u32 v2 = rand();
+	javelin_u32 result = (v1 << 16) | v2;
+	printf( "Random value: %u\n", result );
+	return result;
+}
+
 int main()
 {
 	struct JavelinState netState;
 
 #ifdef CLIENT
-	if ( javelinCreate( &netState, NULL, 0, 1 ) != JAVELIN_ERROR_OK ) {
+	if ( javelinCreate( &netState, NULL, 0, 1, randomNumber ) != JAVELIN_ERROR_OK ) {
 		printf( "Error initializing javelin\n" );
 		return 1;
 	}
@@ -22,7 +31,7 @@ int main()
 #endif
 
 #ifdef SERVER
-	if ( javelinCreate( &netState, NULL, 49876, 8 ) != JAVELIN_ERROR_OK ) {
+	if ( javelinCreate( &netState, NULL, 49876, 8, randomNumber ) != JAVELIN_ERROR_OK ) {
 		printf( "Error initializing javelin\n" );
 		return 1;
 	}

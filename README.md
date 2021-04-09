@@ -7,19 +7,18 @@ Javelin is incomplete and has bugs. It's primary purpose is for use in my own mu
 
 **Existing features**
 
+* Cross platform
 * Client/server connection management
 * Message-based API (for sending large numbers of small messages, rather than whole packets)
 * Reliable message ordering (messages are guaranteed to arrive in the order you send them)
-* Cross platform
+* Packet salting, for protection against basic attacks
 
 **TODO**
 
-* Connection security
-  * Randomized connection challenge/response
-  * Tagged packet headers
+* Unit tests
+* Documentation
 * Allow sending of unreliable messages
 * Add bandwidth tracking and throttling
-* Documentation...
 
 **Usage**
 
@@ -27,4 +26,4 @@ Just include `javelin.h` and `javelin.c` in your project.
 
 Javelin is written in C, and uses some C11 features. It might not compile in C++.
 
-See `test.c` for a simple example.
+See `example.c` for a simple example.

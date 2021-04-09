@@ -52,6 +52,7 @@ enum JavelinError {
 	JAVELIN_ERROR_MESSAGE_FULL,
 	JAVELIN_ERROR_MESSAGE_BUFFER_FULL,
 	JAVELIN_ERROR_CHAR_ARRAY_TOO_LONG,
+	JAVELIN_ERROR_RANDOM_GENERATOR_REQUIRED,
 };
 
 enum JavelinConnectionStateType {
@@ -72,12 +73,14 @@ enum JavelinPacketType {
 	JAVELIN_PACKET_DISCONNECT,
 	JAVELIN_PACKET_PING,
 	JAVELIN_PACKET_DATA,
+	JAVELIN_PACKET_SERVER_FULL,
 };
 
 struct JavelinPacketHeader {
 	// TODO: header, crc, salt, etc.
 	enum JavelinPacketType type;
 	javelin_u32 ackMessageId;
+	javelin_u32 salt;
 };
 
 struct JavelinMessageBlock {
@@ -94,7 +97,8 @@ struct JavelinConnection {
 	size_t userValue;
 	struct sockaddr_storage address;
 	enum JavelinConnectionStateType connectionState;
-	javelin_u32 challenge;	// TODO: make this value meaningful beyond existing
+	javelin_u32 localSalt;
+	javelin_u32 remoteSalt;
 	javelin_u64 lastSendTime;
 	javelin_u64 lastReceiveTime;
 	javelin_u32 retryTime;
@@ -108,12 +112,14 @@ struct JavelinConnection {
 struct JavelinPendingConnection {
 	struct sockaddr_storage address;
 	enum JavelinConnectionStateType connectionState;
-	javelin_u32 challenge;	// TODO: make this value meaningful beyond existing
+	javelin_u32 localSalt;
+	javelin_u32 remoteSalt;
 	javelin_u64 lastSendTime;
 	javelin_u64 lastReceiveTime;
 };
 
 struct JavelinState {
+	javelin_u32 (*randomGenerator)( void );
 	struct JavelinConnection* connectionSlots;
 	javelin_u32 connectionLimit;
 	struct JavelinPendingConnection pendingConnectionSlots[JAVELIN_MAX_PENDING_CONNECTIONS];
@@ -137,7 +143,7 @@ struct JavelinEvent {
 	struct JavelinMessageBlock* message;
 };
 
-enum JavelinError javelinCreate( struct JavelinState* state, const char* address, const javelin_u16 port, const javelin_u32 maxConnections );
+enum JavelinError javelinCreate( struct JavelinState* state, const char* address, const javelin_u16 port, const javelin_u32 maxConnections, javelin_u32 (*randomGenerator)( void ) );
 void javelinDestroy( struct JavelinState* state );
 enum JavelinError javelinConnect( struct JavelinState* state, const char* address, const javelin_u16 port );
 void javelinDisconnect( struct JavelinState* state );
