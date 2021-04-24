@@ -487,31 +487,33 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		if ( connection->outgoingLastIdSent == connection->outgoingLastIdAcknowledged ) {
 			continue;
 		}
-		bool messagesToSend = false;
-		writePacketHeader( state, JAVELIN_PACKET_DATA, connection->incomingLastIdProcessed, calculateSalt( connection ) );
 		size_t messageIndex = (connection->outgoingLastIdAcknowledged + 1) % JAVELIN_MAX_MESSAGES;
 		size_t lastIndex = (connection->outgoingLastIdSent + 1) % JAVELIN_MAX_MESSAGES;
 		while ( messageIndex != lastIndex ) {
-			struct JavelinMessageBlock* block = &connection->outgoingMessageBuffer[messageIndex];
-			if ( state->outgoingPacketSize + sizeof(javelin_u16) + sizeof(javelin_u16) + block->size > JAVELIN_MAX_PACKET_SIZE ) {
-				break;
+			writePacketHeader( state, JAVELIN_PACKET_DATA, connection->incomingLastIdProcessed, calculateSalt( connection ) );
+			bool messagesToSend = false;
+			while ( messageIndex != lastIndex ) {
+				struct JavelinMessageBlock* block = &connection->outgoingMessageBuffer[messageIndex];
+				if ( state->outgoingPacketSize + sizeof(javelin_u16) + sizeof(javelin_u16) + block->size > JAVELIN_MAX_PACKET_SIZE ) {
+					break;
+				}
+				if ( block->outgoingLastSendTime == 0 || (currentTimeMs - block->outgoingLastSendTime) > connection->retryTime ) {
+					if ( VERBOSE ) printf( "net: queuing message to send: id = %i, size = %zu\n", block->messageId, block->size );
+					// message header
+					writeBufferU16( state->outgoingPacketBuffer, &state->outgoingPacketSize, block->messageId );
+					writeBufferU16( state->outgoingPacketBuffer, &state->outgoingPacketSize, block->size );
+					memcpy( &state->outgoingPacketBuffer[state->outgoingPacketSize], block->payload, block->size );
+					state->outgoingPacketSize += block->size;
+					block->outgoingLastSendTime = currentTimeMs;
+					messagesToSend = true;
+				}
+				messageIndex = (messageIndex + 1) % JAVELIN_MAX_MESSAGES;
 			}
-			if ( block->outgoingLastSendTime == 0 || (currentTimeMs - block->outgoingLastSendTime) > connection->retryTime ) {
-				if ( VERBOSE ) printf( "net: queuing message to send: id = %i, size = %zu\n", block->messageId, block->size );
-				// message header
-				writeBufferU16( state->outgoingPacketBuffer, &state->outgoingPacketSize, block->messageId );
-				writeBufferU16( state->outgoingPacketBuffer, &state->outgoingPacketSize, block->size );
-				memcpy( &state->outgoingPacketBuffer[state->outgoingPacketSize], block->payload, block->size );
-				state->outgoingPacketSize += block->size;
-				block->outgoingLastSendTime = currentTimeMs;
-				messagesToSend = true;
+			if ( messagesToSend ) {
+				if ( VERBOSE ) printf( "net: Send packet: JAVELIN_PACKET_DATA\n" );
+				sendPacket( state, &connection->address );
+				connection->lastSendTime = currentTimeMs;
 			}
-			messageIndex = (messageIndex + 1) % JAVELIN_MAX_MESSAGES;
-		}
-		if ( messagesToSend ) {
-			if ( VERBOSE ) printf( "net: Send packet: JAVELIN_PACKET_DATA\n" );
-			sendPacket( state, &connection->address );
-			connection->lastSendTime = currentTimeMs;
 		}
 	}
 
