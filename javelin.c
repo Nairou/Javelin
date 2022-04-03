@@ -25,12 +25,12 @@ enum JavelinError javelinWriteCharArray( struct JavelinMessageBlock* block, cons
 		return JAVELIN_ERROR_CHAR_ARRAY_TOO_LONG;
 	}
 
-	if ( block->size + sizeof(javelin_u16) + length > JAVELIN_MAX_MESSAGE_SIZE ) {
+	if ( block->size + sizeof (javelin_u16) + length > JAVELIN_MAX_MESSAGE_SIZE ) {
 		return JAVELIN_ERROR_MESSAGE_FULL;
 	}
 	javelinWriteU16( block, (javelin_u16)length );
 	memcpy( &block->payload[block->size], buffer, length );
-	block->size += sizeof(javelin_u16) + length;
+	block->size += sizeof (javelin_u16) + length;
 	return JAVELIN_ERROR_OK;
 }
 
@@ -41,7 +41,7 @@ static void writeBufferU8( javelin_u8* buffer, size_t* offset, const javelin_u8 
 
 enum JavelinError javelinWriteU8( struct JavelinMessageBlock* block, const javelin_u8 value )
 {
-	if ( block->size + sizeof(javelin_u8) > JAVELIN_MAX_MESSAGE_SIZE ) {
+	if ( block->size + sizeof (javelin_u8) > JAVELIN_MAX_MESSAGE_SIZE ) {
 		return JAVELIN_ERROR_MESSAGE_FULL;
 	}
 	writeBufferU8( block->payload, &block->size, value );
@@ -56,7 +56,7 @@ static void writeBufferU16( javelin_u8* buffer, size_t* offset, const javelin_u1
 
 enum JavelinError javelinWriteU16( struct JavelinMessageBlock* block, const javelin_u16 value )
 {
-	if ( block->size + sizeof(javelin_u16) > JAVELIN_MAX_MESSAGE_SIZE ) {
+	if ( block->size + sizeof (javelin_u16) > JAVELIN_MAX_MESSAGE_SIZE ) {
 		return JAVELIN_ERROR_MESSAGE_FULL;
 	}
 	writeBufferU16( block->payload, &block->size, value );
@@ -78,7 +78,7 @@ static void writeBufferU32( javelin_u8* buffer, size_t* offset, const javelin_u3
 
 enum JavelinError javelinWriteU32( struct JavelinMessageBlock* block, const javelin_u32 value )
 {
-	if ( block->size + sizeof(javelin_u32) > JAVELIN_MAX_MESSAGE_SIZE ) {
+	if ( block->size + sizeof (javelin_u32) > JAVELIN_MAX_MESSAGE_SIZE ) {
 		return JAVELIN_ERROR_MESSAGE_FULL;
 	}
 	writeBufferU32( block->payload, &block->size, value );
@@ -104,7 +104,7 @@ static void writeBufferU64( javelin_u8* buffer, size_t* offset, const javelin_u6
 
 enum JavelinError javelinWriteU64( struct JavelinMessageBlock* block, const javelin_u64 value )
 {
-	if ( block->size + sizeof(javelin_u64) > JAVELIN_MAX_MESSAGE_SIZE ) {
+	if ( block->size + sizeof (javelin_u64) > JAVELIN_MAX_MESSAGE_SIZE ) {
 		return JAVELIN_ERROR_MESSAGE_FULL;
 	}
 	writeBufferU64( block->payload, &block->size, value );
@@ -140,7 +140,7 @@ static javelin_u8 readBufferU8( const javelin_u8* buffer, size_t* offset )
 
 javelin_u8 javelinReadU8( struct JavelinMessageBlock* block )
 {
-	if ( block->incomingReadOffset + sizeof(javelin_u8) > block->size ) {
+	if ( block->incomingReadOffset + sizeof (javelin_u8) > block->size ) {
 		return 0;
 	}
 	return readBufferU8( block->payload, &block->incomingReadOffset );
@@ -155,7 +155,7 @@ static javelin_u16 readBufferU16( const javelin_u8* buffer, size_t* offset )
 
 javelin_u16 javelinReadU16( struct JavelinMessageBlock* block )
 {
-	if ( block->incomingReadOffset + sizeof(javelin_u16) > block->size ) {
+	if ( block->incomingReadOffset + sizeof (javelin_u16) > block->size ) {
 		return 0;
 	}
 	return readBufferU16( block->payload, &block->incomingReadOffset );
@@ -181,7 +181,7 @@ static javelin_u32 readBufferU32( const javelin_u8* buffer, size_t* offset )
 
 javelin_u32 javelinReadU32( struct JavelinMessageBlock* block )
 {
-	if ( block->incomingReadOffset + sizeof(javelin_u32) > block->size ) {
+	if ( block->incomingReadOffset + sizeof (javelin_u32) > block->size ) {
 		return 0;
 	}
 	return readBufferU32( block->payload, &block->incomingReadOffset );
@@ -211,7 +211,7 @@ static javelin_u64 readBufferU64( const javelin_u8* buffer, size_t* offset )
 
 javelin_u64 javelinReadU64( struct JavelinMessageBlock* block )
 {
-	if ( block->incomingReadOffset + sizeof(javelin_u64) > block->size ) {
+	if ( block->incomingReadOffset + sizeof (javelin_u64) > block->size ) {
 		return 0;
 	}
 	return readBufferU64( block->payload, &block->incomingReadOffset );
@@ -235,13 +235,13 @@ static javelin_u64 getCurrentTime( void )
 
 enum JavelinError javelinCreate( struct JavelinState* state, const char* address, const javelin_u16 port, const javelin_u32 maxConnections, javelin_u32 (*randomGenerator)( void ) )
 {
-	static_assert( JAVELIN_MAX_PACKET_SIZE > sizeof(struct JavelinPacketHeader) + sizeof(javelin_u16) + sizeof(javelin_u16) + JAVELIN_MAX_MESSAGE_SIZE, "Max message size is too large to fit in a packet" );
+	static_assert( JAVELIN_MAX_PACKET_SIZE > sizeof (struct JavelinPacketHeader) + sizeof (javelin_u16) + sizeof (javelin_u16) + JAVELIN_MAX_MESSAGE_SIZE, "Max message size is too large to fit in a packet" );
 	static_assert( (JAVELIN_MAX_MESSAGES & (JAVELIN_MAX_MESSAGES - 1)) == 0, "Max number of messages must be a power of two" );
 
 	if ( randomGenerator == NULL ) {
 		return JAVELIN_ERROR_RANDOM_GENERATOR_REQUIRED;
 	}
-	memset( state, 0, sizeof(struct JavelinState) );
+	memset( state, 0, sizeof (struct JavelinState) );
 
 #ifdef _WIN32
 	WSADATA wsaData;
@@ -263,7 +263,7 @@ enum JavelinError javelinCreate( struct JavelinState* state, const char* address
 	}
 
 	char portString[10];
-	snprintf( portString, sizeof(portString), "%i", port );
+	snprintf( portString, sizeof (portString), "%i", port );
 
 	struct addrinfo* addrResults;
 	int aiStatus = getaddrinfo( address, portString, &hints, &addrResults );
@@ -285,13 +285,13 @@ enum JavelinError javelinCreate( struct JavelinState* state, const char* address
 		}
 
 		if ( addr->ai_family == AF_INET ) {
-			memcpy( &state->address, addr->ai_addr, sizeof(struct sockaddr_in) );
+			memcpy( &state->address, addr->ai_addr, sizeof (struct sockaddr_in) );
 		}
 		else {
-			memcpy( &state->address, addr->ai_addr, sizeof(struct sockaddr_in6) );
+			memcpy( &state->address, addr->ai_addr, sizeof (struct sockaddr_in6) );
 
 			int v6Only = 0;
-			setsockopt( state->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6Only, sizeof(v6Only) );
+			setsockopt( state->socket, IPPROTO_IPV6, IPV6_V6ONLY, &v6Only, sizeof (v6Only) );
 		}
 
 #ifdef _WIN32
@@ -313,11 +313,11 @@ enum JavelinError javelinCreate( struct JavelinState* state, const char* address
 	freeaddrinfo( addrResults );
 
 	state->connectionLimit = maxConnections > 0 ? maxConnections : 1;
-	state->connectionSlots = (struct JavelinConnection*)malloc( sizeof(struct JavelinConnection) * state->connectionLimit );
+	state->connectionSlots = (struct JavelinConnection*)malloc( sizeof (struct JavelinConnection) * state->connectionLimit );
 	if ( state->connectionSlots == 0 ) {
 		return JAVELIN_ERROR_MEMORY;
 	}
-	memset( state->connectionSlots, 0, sizeof(struct JavelinConnection) * state->connectionLimit );
+	memset( state->connectionSlots, 0, sizeof (struct JavelinConnection) * state->connectionLimit );
 	state->randomGenerator = randomGenerator;
 
 	return JAVELIN_ERROR_OK;
@@ -361,7 +361,7 @@ static void writePacketHeader( struct JavelinState* state, enum JavelinPacketTyp
 
 static void sendPacket( struct JavelinState* state, struct sockaddr_storage* address )
 {
-	int result = sendto( state->socket, state->outgoingPacketBuffer, state->outgoingPacketSize, 0, (struct sockaddr*)address, sizeof(struct sockaddr_storage) );
+	int result = sendto( state->socket, state->outgoingPacketBuffer, state->outgoingPacketSize, 0, (struct sockaddr*)address, sizeof (struct sockaddr_storage) );
 	if ( result < 0 ) {
 		// TODO: Do we care about this error? Count errors towards a forced disconnect?
 		if ( VERBOSE ) printf( "net: sendto error: %i\n", errno );
@@ -380,7 +380,7 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 			continue;
 		}
 		connection = &state->connectionSlots[i];
-		memset( connection, 0, sizeof(struct JavelinConnection) );
+		memset( connection, 0, sizeof (struct JavelinConnection) );
 		connection->slot = i;
 		break;
 	}
@@ -389,7 +389,7 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 	}
 
 	char portString[10];
-	snprintf( portString, sizeof(portString), "%i", port );
+	snprintf( portString, sizeof (portString), "%i", port );
 
 	struct addrinfo hints = {0};
 	hints.ai_family = state->address.ss_family;
@@ -402,10 +402,10 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 	}
 
 	if ( addr->ai_family == AF_INET ) {
-		memcpy( &connection->address, addr->ai_addr, sizeof(struct sockaddr_in) );
+		memcpy( &connection->address, addr->ai_addr, sizeof (struct sockaddr_in) );
 	}
 	else {
-		memcpy( &connection->address, addr->ai_addr, sizeof(struct sockaddr_in6) );
+		memcpy( &connection->address, addr->ai_addr, sizeof (struct sockaddr_in6) );
 	}
 
 	javelin_u64 currentTimeMs = getCurrentTime();
@@ -420,6 +420,7 @@ enum JavelinError javelinConnect( struct JavelinState* state, const char* addres
 	connection->lastSendTime = currentTimeMs;
 	connection->lastReceiveTime = currentTimeMs;
 
+	freeaddrinfo( addr );
 	return JAVELIN_ERROR_OK;
 }
 
@@ -494,7 +495,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 			bool messagesToSend = false;
 			while ( messageIndex != lastIndex ) {
 				struct JavelinMessageBlock* block = &connection->outgoingMessageBuffer[messageIndex];
-				if ( state->outgoingPacketSize + sizeof(javelin_u16) + sizeof(javelin_u16) + block->size > JAVELIN_MAX_PACKET_SIZE ) {
+				if ( state->outgoingPacketSize + sizeof (javelin_u16) + sizeof (javelin_u16) + block->size > JAVELIN_MAX_PACKET_SIZE ) {
 					break;
 				}
 				if ( block->outgoingLastSendTime == 0 || (currentTimeMs - block->outgoingLastSendTime) > connection->retryTime ) {
@@ -591,7 +592,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 		}
 
 		struct sockaddr_storage fromAddress;
-		int fromLength = sizeof(fromAddress);
+		int fromLength = sizeof (fromAddress);
 		javelin_u8 packetBuffer[JAVELIN_MAX_PACKET_SIZE];
 		int receivedLength = recvfrom( state->socket, packetBuffer, JAVELIN_MAX_PACKET_SIZE, 0, (struct sockaddr*)&fromAddress, (socklen_t*)&fromLength );
 		if ( receivedLength <= 0 ) {
@@ -642,7 +643,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 				}
 				if ( VERBOSE ) printf( "net: new pending slot: %i\n", state->pendingConnectionCount );
 				pendingConnection = &state->pendingConnectionSlots[state->pendingConnectionCount++];
-				memset( pendingConnection, 0, sizeof(struct JavelinPendingConnection) );
+				memset( pendingConnection, 0, sizeof (struct JavelinPendingConnection) );
 				pendingConnection->address = fromAddress;
 				pendingConnection->connectionState = JAVELIN_CONNECTIONSTATE_NONE;
 				pendingConnection->localSalt = state->randomGenerator();
@@ -682,7 +683,7 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 					continue;	// next packet
 				}
 				struct JavelinConnection* connection = &state->connectionSlots[availableSlot];
-				memset( connection, 0, sizeof(struct JavelinConnection) );
+				memset( connection, 0, sizeof (struct JavelinConnection) );
 				connection->isActive = true;
 				connection->slot = availableSlot;
 				connection->address = pendingConnection->address;
@@ -745,18 +746,22 @@ bool javelinProcess( struct JavelinState* state, struct JavelinEvent* outEvent )
 					// message header
 					const javelin_u16 id = readBufferU16( packetBuffer, &readOffset );
 					const javelin_u32 size = readBufferU16( packetBuffer, &readOffset );
-					if ( VERBOSE ) printf( "received message: id = %i, size = %i\n", id, size );
+					if ( VERBOSE ) printf( "     received message: id = %i, size = %i\n", id, size );
 					if ( readOffset + size > (size_t)receivedLength ) {
 						// If reported size is bad, ignore the rest of the packet
+						if ( VERBOSE ) printf( "     reported size %zu larger than %u, aborting packet\n", readOffset + size, receivedLength );
 						break;
 					}
 					if ( id - packetConnection->incomingLastIdProcessed < JAVELIN_MAX_MESSAGES ) {
-						if ( VERBOSE ) printf( "storing message %u\n", id );
+						if ( VERBOSE ) printf( "     storing message %u (to slot %u)\n", id, id % JAVELIN_MAX_MESSAGES );
 						struct JavelinMessageBlock* block = &packetConnection->incomingMessageBuffer[id % JAVELIN_MAX_MESSAGES];
 						block->messageId = id;
 						block->incomingReadOffset = 0;
 						block->size = size;
 						memcpy( block->payload, &packetBuffer[readOffset], size );
+					}
+					else {
+						if ( VERBOSE ) printf( "     ignoring message %u (too old)\n", id );
 					}
 					readOffset += size;
 				}
@@ -800,7 +805,7 @@ enum JavelinError javelinQueueMessage( struct JavelinConnection* connection, str
 		return JAVELIN_ERROR_INVALID_MESSAGE;
 	}
 
-	if ( connection->outgoingLastIdSent - connection->outgoingLastIdAcknowledged >= JAVELIN_MAX_MESSAGES ) {
+	if ( (connection->outgoingLastIdSent - connection->outgoingLastIdAcknowledged) >= JAVELIN_MAX_MESSAGES ) {
 		if ( VERBOSE ) printf( "net: Unable to queue message: buffer full\n" );
 		return JAVELIN_ERROR_MESSAGE_BUFFER_FULL;
 	}
